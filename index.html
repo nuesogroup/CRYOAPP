@@ -148,19 +148,116 @@
       </div>
     </header>
 
-    <!-- === CONTENIDO DE TU APP (no se ha modificado) === -->
-    <!-- TODO lo anterior queda tal cual, no se toca -->
-    <!-- === CONTENIDO DE TU APP (no se ha modificado) === -->
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="layout">
 
-  </div>
+      <!-- PANEL IZQUIERDO: DATOS DEL TUBO -->
+      <section class="panel">
+        <div class="panel-title">Datos del tubo</div>
+        <div class="field-group">
 
-  <!-- === SCRIPTS FINALES CORRECTOS === -->
+          <div class="field-row">
+            <div class="field">
+              <label for="npsSelect">NPS</label>
+              <select id="npsSelect"></select>
+            </div>
+            <div class="field">
+              <label for="dnSelect">DN</label>
+              <select id="dnSelect"></select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="standardSelect">Standard</label>
+              <select id="standardSelect"></select>
+            </div>
+            <div class="field">
+              <label for="materialSelect">Material</label>
+              <select id="materialSelect"></select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="peKgMt">Peso (kg/mt)</label>
+              <input type="number" id="peKgMt" step="0.01" />
+            </div>
+            <div class="field">
+              <label for="meters">Metros</label>
+              <input type="number" id="meters" step="0.01" />
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- PANEL CENTRAL: TABLA DE PRECIOS -->
+      <section class="panel">
+        <div class="panel-title">Precios materia prima</div>
+
+        <div class="prices-header">
+          <div class="field">
+            <label for="monthSelect">Mes</label>
+            <select id="monthSelect"></select>
+          </div>
+          <div class="field">
+            <label>Resumen</label>
+            <div id="summaryOutput" class="summary">
+              Selecciona un mes para ver el detalle.
+            </div>
+          </div>
+        </div>
+
+        <table id="pricesTable">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th>ACERIA UE</th>
+              <th>DISTRIBUIDOR UE</th>
+              <th>ASIA</th>
+              <th>DISTR EU-ASIA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Se rellena desde logic.js -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- PANEL DERECHO: GRÁFICA Y RESUMEN -->
+      <section class="panel">
+        <div class="panel-title">Evolución precios & cálculo</div>
+        <div class="chart-container">
+          <div class="chart-wrapper">
+            <canvas id="priceChart"></canvas>
+          </div>
+          <div class="footer-actions">
+            <div class="summary">
+              Kilos calculados: <span id="currentKgsLabel">0.00</span>
+            </div>
+            <div>
+              <button class="btn btn-secondary" id="clearButton">Borrar líneas</button>
+              <button class="btn btn-primary" id="saveButton">Grabar línea</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div> <!-- /.layout -->
+
+  </div> <!-- /.app-shell -->
+
+  <!-- SCRIPTS FINALES -->
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <!-- Datos desde Excel -->
   <script src="data/priceData.js"></script>
+
+  <!-- Rangos dinámicos -->
+  <script src="data/ranges.js"></script>
 
   <!-- Lógica -->
   <script src="logic.js"></script>
