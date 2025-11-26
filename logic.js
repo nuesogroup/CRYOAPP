@@ -9,10 +9,12 @@ const npsSelect = document.getElementById("npsSelect");
 const dnSelect = document.getElementById("dnSelect");
 const standardSelect = document.getElementById("standardSelect");
 const materialSelect = document.getElementById("materialSelect");
+const scheduleSelect = document.getElementById("scheduleSelect");
 
-// Ejemplo de inputs numéricos
+// Inputs numéricos
 const peKgMtInput = document.getElementById("peKgMt");
 const metersInput = document.getElementById("meters");
+const totalKgsInput = document.getElementById("totalKgs"); // ⬅️ nuevo campo
 
 // 2. FUNCIONES AUXILIARES
 function toNumber(v) {
@@ -24,10 +26,6 @@ function formatCurrency(v) {
   return n.toFixed(2).replace(".", ",") + " €";
 }
 
-/**
- * Rellena un <select> con un array de valores.
- * Equivale a usar un rango con nombre en Excel.
- */
 function fillSelect(selectEl, values) {
   if (!selectEl || !values) return;
   selectEl.innerHTML = "";
@@ -39,10 +37,9 @@ function fillSelect(selectEl, values) {
   });
 }
 
-// 3. FUNCIONES DE DIBUJO (tabla y gráfica) usando priceData
+// 3. TABLA Y GRÁFICA DE PRECIOS
 function renderTable(activeMonthLabel) {
   if (!pricesTableBody) return;
-
   pricesTableBody.innerHTML = "";
   priceData.forEach((row) => {
     const tr = document.createElement("tr");
@@ -61,7 +58,6 @@ function renderTable(activeMonthLabel) {
 function initChart() {
   const canvas = document.getElementById("priceChart");
   if (!canvas) return;
-
   const ctx = canvas.getContext("2d");
   const labels = priceData.map((r) => r.monthLabel);
 
@@ -85,24 +81,21 @@ function initChart() {
         tooltip: {
           callbacks: {
             label: (ctx) =>
-              `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`,
-          },
-        },
+              `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+          }
+        }
       },
       scales: {
         y: {
           ticks: {
-            callback: (v) => v.toFixed(2) + " €",
-          },
-        },
-      },
-    },
+            callback: (v) => v.toFixed(2) + " €"
+          }
+        }
+      }
+    }
   });
 }
 
-/**
- * Rellena el select de meses con los datos de priceData.
- */
 function initMonths() {
   if (!monthSelect) return;
   fillSelect(
@@ -111,56 +104,91 @@ function initMonths() {
   );
 }
 
-/**
- * Inicializa la lógica de selección de los desplegables,
- * imitando el comportamiento de la hoja RANGOS del Excel.
- */
+// === DIMENSIONES (B36.19): EQUIVALENTE A F37 EN EXCEL ===
+//
+// dimData viene de data/dimData.js y tiene este formato:
+// const dimData = [
+//   { nps: "1/8", dn: "6", schedule: "10S", kgPerM: 0.2827504 },
+//   ...
+// ];
+
+// Busca kg/mt en dimData usando NPS, DN y Schedule
+function lookupKgPerMeter(nps, dn, schedule) {
+  if (!Array.isArray(dimData)) return null;
+
+  const row = dimData.find(
+    (r) => r.nps === nps && r.dn === dn && r.schedule === schedule
+  );
+
+  return row ? row.kgPerM : null;
+}
+
+// Actualiza el campo Peso (kg/mt) según NPS, DN y Schedule
+function updatePlainEndWeight() {
+  if (!npsSelect || !dnSelect || !scheduleSelect || !peKgMtInput) return;
+  const nps = npsSelect.value;
+  const dn = dnSelect.value;
+  const schedule = scheduleSelect.value;
+
+  const kgPerMeter = lookupKgPerMeter(nps, dn, schedule);
+
+  if (kgPerMeter != null) {
+    peKgMtInput.value = kgPerMeter.toFixed(3); // como F37
+  } else {
+    peKgMtInput.value = "";
+  }
+}
+
+// === RANGOS / DESPLEGABLES (RANGOS!NPS, DN, Standard, etc.) ===
 function initDropdowns() {
   if (typeof ranges === "undefined") {
     console.warn("ranges.js no está cargado");
     return;
   }
 
-  // 1) Rellenar listas básicas desde RANGOS (equivalente a usar rangos con nombre)
   if (npsSelect) fillSelect(npsSelect, ranges.NPS);
   if (dnSelect) fillSelect(dnSelect, ranges.DN);
   if (standardSelect) fillSelect(standardSelect, ranges.Standard);
   if (materialSelect) fillSelect(materialSelect, ranges.Material);
+  if (scheduleSelect) fillSelect(scheduleSelect, ranges["Shedule_No."]);
 
-  // 2) Sincronizar NPS <-> DN por posición (como las filas NPS y DN en la hoja RANGOS)
+  // Sincronizar NPS <-> DN por índice, como en RANGOS
   if (npsSelect && dnSelect && ranges.NPS && ranges.DN) {
-    // Al inicio: fijamos ambos al primer valor
     if (ranges.NPS.length > 0 && ranges.DN.length > 0) {
       npsSelect.value = ranges.NPS[0];
       dnSelect.value = ranges.DN[0];
     }
 
-    // Cuando cambia NPS, actualizamos DN al mismo índice
     npsSelect.addEventListener("change", () => {
       const idx = ranges.NPS.indexOf(npsSelect.value);
       if (idx !== -1 && ranges.DN[idx]) {
         dnSelect.value = ranges.DN[idx];
       }
+      updatePlainEndWeight();
+      recalculateAll();
     });
 
-    // Cuando cambia DN, actualizamos NPS al mismo índice
     dnSelect.addEventListener("change", () => {
       const idx = ranges.DN.indexOf(dnSelect.value);
       if (idx !== -1 && ranges.NPS[idx]) {
         npsSelect.value = ranges.NPS[idx];
       }
+      updatePlainEndWeight();
+      recalculateAll();
     });
   }
 
-  // 3) (Opcional futuro) Podremos añadir aquí lógica extra:
-  //    - Standard -> filtrar Material
-  //    - Material -> familia (Ferritic, Duplex, Austenitic)
-  //    - etc., copiando las reglas del Excel.
+  if (scheduleSelect) {
+    scheduleSelect.addEventListener("change", () => {
+      updatePlainEndWeight();
+      recalculateAll();
+    });
+  }
 }
 
-// 4. AQUÍ IRÁN LAS FÓRMULAS QUE VAMOS A IMPORTAR DE EXCEL
+// 4. FORMULAS PRINCIPALES
 function recalculateAll() {
-  // Ejemplo: KGS = peKgMt * meters  (equivalente a L11 = F37 * F39)
+  // L11 = F37 * F39  → Kgs totales = kg/mt * metros
   const peKgMt = toNumber(peKgMtInput?.value);
   const meters = toNumber(metersInput?.value);
   const kgs = peKgMt * meters;
@@ -169,13 +197,16 @@ function recalculateAll() {
     currentKgsLabelEl.textContent = kgs.toFixed(2);
   }
 
-  // ⬇️ debajo de esto iremos añadiendo TODAS las fórmulas nuevas
-  // ...
+  if (totalKgsInput) {
+    totalKgsInput.value = kgs.toFixed(2); // ⬅️ muestra Kg totales en el input
+  }
+
+  // Aquí añadiremos más fórmulas (coste €/m, coste total, etc.)
 }
 
 // 5. INICIALIZACIÓN GENERAL
 function init() {
-  // 1) Meses y tabla de precios
+  // Meses y tabla
   initMonths();
   const activeMonth =
     (monthSelect && monthSelect.value) || priceData[0]?.monthLabel;
@@ -184,16 +215,19 @@ function init() {
     renderTable(activeMonth);
   }
 
-  // 2) Gráfica
+  // Gráfica
   initChart();
 
-  // 3) Desplegables tipo Excel (RANGOS)
+  // Desplegables (RANGOS)
   initDropdowns();
 
-  // 4) Cálculos
+  // Peso inicial según valores por defecto
+  updatePlainEndWeight();
+
+  // Cálculos
   recalculateAll();
 
-  // === LISTENERS ===
+  // Listeners generales
   if (monthSelect) {
     monthSelect.addEventListener("change", (e) => {
       renderTable(e.target.value);
